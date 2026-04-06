@@ -15,7 +15,7 @@ PF.Agent = (function () {
 
   // ── Config (persisted in localStorage) ─────────────────────────
   var _config = {
-    proxyUrl: "",        // e.g. "https://ai-med-api.up.railway.app/api/policymaker-chat"
+    proxyUrl: "https://policymaker-formal-proxy.bbdaniels.workers.dev/",
     apiKey: "",          // direct HDSI key (only if no proxy)
     baseUrl: "",         // direct HDSI base URL
     model: "gpt-4o-mini"
