@@ -44,6 +44,21 @@
           <span class="nav-icon">&#9432;</span> About
         </li>
       </ul>
+      <div id="sidebar-chat">
+        <div class="sidebar-chat-header">&#9733; AI Assistant</div>
+        <div id="chat-messages">
+          <div class="chat-msg system">Ask me to build or analyze your pathway.</div>
+        </div>
+        <div class="chat-input-row">
+          <input type="text" id="chat-input" placeholder="Ask anything..." autocomplete="off">
+          <button id="chat-send">&#9654;</button>
+        </div>
+        <div class="chat-footer">
+          <button id="chat-settings-btn" class="chat-link">Settings</button>
+          <button id="chat-clear-btn" class="chat-link">Clear</button>
+          <span id="chat-status" class="chat-status"></span>
+        </div>
+      </div>
     </nav>
 
     <main id="content">
@@ -232,28 +247,6 @@
           <button type="button" class="btn-cancel" id="btn-cancel-node">Cancel</button>
         </div>
       </form>
-    </div>
-  </div>
-
-  <!-- Chat drawer -->
-  <div id="chat-drawer" class="chat-drawer collapsed">
-    <div class="chat-header" id="chat-toggle">
-      <span>&#9733; AI Assistant</span>
-      <span class="chat-toggle-icon">&#9650;</span>
-    </div>
-    <div class="chat-body">
-      <div id="chat-messages">
-        <div class="chat-msg system">Ask me to build or analyze your institutional pathway. Examples: "Add a judicial review node after presidential signature" or "What's the bottleneck?"</div>
-      </div>
-      <div class="chat-input-row">
-        <input type="text" id="chat-input" placeholder="Type a message..." autocomplete="off">
-        <button id="chat-send">&#9654;</button>
-      </div>
-      <div class="chat-footer">
-        <button id="chat-settings-btn" class="chat-link">Settings</button>
-        <button id="chat-clear-btn" class="chat-link">Clear</button>
-        <span id="chat-status" class="chat-status"></span>
-      </div>
     </div>
   </div>
 

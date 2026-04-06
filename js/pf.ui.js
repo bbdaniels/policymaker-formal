@@ -276,15 +276,6 @@ PF.UI = (function () {
     // ── Chat drawer ──────────────────────────────────────────────
     PF.Agent.loadConfig();
 
-    var chatDrawer = document.getElementById("chat-drawer");
-    document.getElementById("chat-toggle").addEventListener("click", function () {
-      chatDrawer.classList.toggle("collapsed");
-      chatDrawer.classList.toggle("expanded");
-      if (chatDrawer.classList.contains("expanded")) {
-        document.getElementById("chat-input").focus();
-      }
-    });
-
     var chatSend = function () {
       var input = document.getElementById("chat-input");
       var text = input.value.trim();
