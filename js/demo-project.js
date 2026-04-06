@@ -371,6 +371,20 @@ PF.DemoProject = {
     { id: 27, node_id: 8, player_id: 1,  role: "veto_holder", vote_weight: 1.0, gate_control: false }
   ],
 
+  Edge: [
+    // House committees → House Floor
+    { id: 1, from_node_id: 1, to_node_id: 3 },  // House E&C → House Floor
+    { id: 2, from_node_id: 2, to_node_id: 3 },  // House W&M → House Floor
+    // Senate committees → Senate Floor
+    { id: 3, from_node_id: 4, to_node_id: 6 },  // Senate Finance → Senate Cloture
+    { id: 4, from_node_id: 5, to_node_id: 6 },  // Senate HELP → Senate Cloture
+    // Both chambers → Conference
+    { id: 5, from_node_id: 3, to_node_id: 7 },  // House Floor → Conference
+    { id: 6, from_node_id: 6, to_node_id: 7 },  // Senate Cloture → Conference
+    // Conference → President
+    { id: 7, from_node_id: 7, to_node_id: 8 }   // Conference → Pres. Signature
+  ],
+
   InstitutionalPath: [
     {
       id: 1,

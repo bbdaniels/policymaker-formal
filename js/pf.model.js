@@ -25,6 +25,7 @@ PF.Model = (function () {
     // PolicyMaker Formal tables
     InstitutionalNode: [],
     NodePlayer: [],
+    Edge: [],
     InstitutionalPath: [],
     VetoOverride: []
   };
@@ -68,7 +69,7 @@ PF.Model = (function () {
     });
 
     // Carry over PF tables if present (re-import of enriched file)
-    var pfTables = ["InstitutionalNode", "NodePlayer", "InstitutionalPath", "VetoOverride"];
+    var pfTables = ["InstitutionalNode", "NodePlayer", "Edge", "InstitutionalPath", "VetoOverride"];
     pfTables.forEach(function (t) {
       if (jsonObj[t]) MODEL[t] = jsonObj[t];
     });
@@ -102,6 +103,7 @@ PF.Model = (function () {
   var deleteNode = function (id) {
     MODEL.InstitutionalNode = MODEL.InstitutionalNode.filter(function (n) { return n.id !== id; });
     MODEL.NodePlayer = MODEL.NodePlayer.filter(function (np) { return np.node_id !== id; });
+    MODEL.Edge = MODEL.Edge.filter(function (e) { return e.from_node_id !== id && e.to_node_id !== id; });
   };
 
   var getNode = function (id) {
@@ -149,6 +151,38 @@ PF.Model = (function () {
       .map(function (np) { return np.node_id; });
   };
 
+  // ── Edge CRUD ───────────────────────────────────────────────────
+  var addEdge = function (fromNodeId, toNodeId) {
+    // Don't duplicate
+    var exists = MODEL.Edge.some(function (e) {
+      return e.from_node_id === fromNodeId && e.to_node_id === toNodeId;
+    });
+    if (exists) return null;
+    var edge = { id: _nextId("Edge"), from_node_id: fromNodeId, to_node_id: toNodeId };
+    MODEL.Edge.push(edge);
+    return edge;
+  };
+
+  var removeEdge = function (fromNodeId, toNodeId) {
+    MODEL.Edge = MODEL.Edge.filter(function (e) {
+      return !(e.from_node_id === fromNodeId && e.to_node_id === toNodeId);
+    });
+  };
+
+  var removeEdgeById = function (id) {
+    MODEL.Edge = MODEL.Edge.filter(function (e) { return e.id !== id; });
+  };
+
+  var getEdges = function () { return MODEL.Edge; };
+
+  var getOutEdges = function (nodeId) {
+    return MODEL.Edge.filter(function (e) { return e.from_node_id === nodeId; });
+  };
+
+  var getInEdges = function (nodeId) {
+    return MODEL.Edge.filter(function (e) { return e.to_node_id === nodeId; });
+  };
+
   // ── Player helpers ─────────────────────────────────────────────
   var getPlayer = function (id) {
     return MODEL.Player.find(function (p) { return (p.Player_ID || p.id) === id; }) || null;
@@ -176,6 +210,12 @@ PF.Model = (function () {
     getPlayers: getPlayers,
     getStrategies: getStrategies,
     getProject: getProject,
+    addEdge: addEdge,
+    removeEdge: removeEdge,
+    removeEdgeById: removeEdgeById,
+    getEdges: getEdges,
+    getOutEdges: getOutEdges,
+    getInEdges: getInEdges,
     stanceClass: stanceClass,
     stanceLabel: stanceLabel,
     STANCE_MAP: STANCE_MAP

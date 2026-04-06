@@ -93,17 +93,13 @@ PF.Vis = (function () {
       });
     });
 
-    // Draw edges between sequential groups
-    var edgeData = [];
-    for (var i = 0; i < seqKeys.length - 1; i++) {
-      var fromGroup = seqGroups[seqKeys[i]];
-      var toGroup = seqGroups[seqKeys[i + 1]];
-      fromGroup.forEach(function (fn) {
-        toGroup.forEach(function (tn) {
-          edgeData.push({ from: fn.id, to: tn.id });
-        });
-      });
-    }
+    // Edge-drawing state
+    var _connectFrom = null;
+
+    // Use explicit edges from model
+    var edgeData = M().getEdges().map(function (e) {
+      return { id: e.id, from: e.from_node_id, to: e.to_node_id };
+    });
 
     // Arrow marker
     svg.append("defs").append("marker")
@@ -116,27 +112,53 @@ PF.Vis = (function () {
       .attr("d", "M0,0 L10,3 L0,6 Z")
       .attr("fill", "#cbd5e1");
 
-    var edgeLines = svg.selectAll(".pipeline-edge")
+    // Visible edge lines
+    var edgeGroups = svg.selectAll(".pipeline-edge")
       .data(edgeData)
       .enter()
       .append("g")
-      .attr("class", "pipeline-edge")
-      .append("line")
-      .attr("x1", function (d) { return nodePositions[d.from].x + nodeW; })
-      .attr("y1", function (d) { return nodePositions[d.from].y + nodeH / 2; })
-      .attr("x2", function (d) { return nodePositions[d.to].x; })
-      .attr("y2", function (d) { return nodePositions[d.to].y + nodeH / 2; })
+      .attr("class", "pipeline-edge");
+
+    // Thick invisible hit area for clicking
+    edgeGroups.append("line")
+      .attr("class", "edge-hitarea")
+      .attr("x1", function (d) { return nodePositions[d.from] ? nodePositions[d.from].x + nodeW : 0; })
+      .attr("y1", function (d) { return nodePositions[d.from] ? nodePositions[d.from].y + nodeH / 2 : 0; })
+      .attr("x2", function (d) { return nodePositions[d.to] ? nodePositions[d.to].x : 0; })
+      .attr("y2", function (d) { return nodePositions[d.to] ? nodePositions[d.to].y + nodeH / 2 : 0; })
+      .attr("stroke", "transparent")
+      .attr("stroke-width", 14)
+      .style("cursor", "pointer")
+      .on("click", function (event, d) {
+        event.stopPropagation();
+        M().removeEdgeById(d.id);
+        drawPipeline(containerId, onNodeClick);
+        showPipelineSummary();
+      });
+
+    // Visible line
+    var edgeLines = edgeGroups.append("line")
+      .attr("class", "edge-line")
+      .attr("x1", function (d) { return nodePositions[d.from] ? nodePositions[d.from].x + nodeW : 0; })
+      .attr("y1", function (d) { return nodePositions[d.from] ? nodePositions[d.from].y + nodeH / 2 : 0; })
+      .attr("x2", function (d) { return nodePositions[d.to] ? nodePositions[d.to].x : 0; })
+      .attr("y2", function (d) { return nodePositions[d.to] ? nodePositions[d.to].y + nodeH / 2 : 0; })
       .attr("stroke", "#cbd5e1")
       .attr("stroke-width", 2)
-      .attr("marker-end", "url(#arrow)");
+      .attr("marker-end", "url(#arrow)")
+      .style("pointer-events", "none");
 
     // Helper to update all edge positions from nodePositions
     var updateEdges = function () {
-      edgeLines
-        .attr("x1", function (d) { return nodePositions[d.from].x + nodeW; })
-        .attr("y1", function (d) { return nodePositions[d.from].y + nodeH / 2; })
-        .attr("x2", function (d) { return nodePositions[d.to].x; })
-        .attr("y2", function (d) { return nodePositions[d.to].y + nodeH / 2; });
+      edgeGroups.selectAll("line").each(function (d) {
+        var line = d3.select(this);
+        if (nodePositions[d.from] && nodePositions[d.to]) {
+          line.attr("x1", nodePositions[d.from].x + nodeW)
+              .attr("y1", nodePositions[d.from].y + nodeH / 2)
+              .attr("x2", nodePositions[d.to].x)
+              .attr("y2", nodePositions[d.to].y + nodeH / 2);
+        }
+      });
     };
 
     // Column geometry for snap targets
@@ -270,6 +292,47 @@ PF.Vis = (function () {
       .on("click", function (event, d) {
         // Only fire click if not dragging
         if (_dragDidMove) return;
+
+        // Shift-click: connect mode
+        if (event.shiftKey && _connectFrom !== null) {
+          if (_connectFrom !== d.id) {
+            M().addEdge(_connectFrom, d.id);
+          }
+          _connectFrom = null;
+          svg.select(".connect-preview").remove();
+          svg.on("mousemove.connect", null);
+          svg.selectAll(".pipeline-node").classed("connecting", false);
+          drawPipeline(containerId, onNodeClick);
+          showPipelineSummary();
+          return;
+        }
+        if (event.shiftKey) {
+          // Start connect mode
+          _connectFrom = d.id;
+          svg.selectAll(".pipeline-node").classed("selected", false);
+          d3.select(this).classed("connecting", true);
+          // Preview line follows mouse
+          var preview = svg.append("line")
+            .attr("class", "connect-preview")
+            .attr("x1", nodePositions[d.id].x + nodeW)
+            .attr("y1", nodePositions[d.id].y + nodeH / 2)
+            .attr("stroke", "#2563eb").attr("stroke-width", 2)
+            .attr("stroke-dasharray", "6 3")
+            .attr("marker-end", "url(#arrow)");
+          svg.on("mousemove.connect", function (ev) {
+            var pt = d3.pointer(ev);
+            preview.attr("x2", pt[0]).attr("y2", pt[1]);
+          });
+          return;
+        }
+
+        // Normal click: select + show detail
+        // Cancel any in-progress connect
+        _connectFrom = null;
+        svg.select(".connect-preview").remove();
+        svg.on("mousemove.connect", null);
+        svg.selectAll(".pipeline-node").classed("connecting", false);
+
         svg.selectAll(".pipeline-node").classed("selected", false);
         d3.select(this).classed("selected", true);
         if (onNodeClick) onNodeClick(d);
