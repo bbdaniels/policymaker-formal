@@ -139,12 +139,85 @@ PF.Vis = (function () {
         .attr("y2", function (d) { return nodePositions[d.to].y + nodeH / 2; });
     };
 
+    // Column geometry for snap targets
+    var colCenters = [];  // { x, seqOrder } for each column
+    seqKeys.forEach(function (seqKey, col) {
+      colCenters.push({
+        x: marginLeft + col * (nodeW + padX) + nodeW / 2,
+        seqOrder: parseInt(seqKey)
+      });
+    });
+
+    // Drop guide lines (hidden until drag)
+    var dropGuides = svg.append("g").attr("class", "drop-guides").style("display", "none");
+    colCenters.forEach(function (cc) {
+      dropGuides.append("line")
+        .attr("x1", cc.x - nodeW / 2 - 4).attr("x2", cc.x - nodeW / 2 - 4)
+        .attr("y1", 0).attr("y2", svgH)
+        .attr("stroke", "#2563eb").attr("stroke-width", 1.5)
+        .attr("stroke-dasharray", "6 4").attr("opacity", 0.4);
+    });
+    // "New column" guide between each pair + at far right
+    var newColGuides = [];
+    for (var gi = 0; gi < colCenters.length - 1; gi++) {
+      newColGuides.push({
+        x: (colCenters[gi].x + colCenters[gi + 1].x) / 2,
+        betweenLeft: colCenters[gi].seqOrder,
+        betweenRight: colCenters[gi + 1].seqOrder
+      });
+    }
+    // New column at far right
+    if (colCenters.length > 0) {
+      var lastCol = colCenters[colCenters.length - 1];
+      newColGuides.push({
+        x: lastCol.x + nodeW / 2 + padX,
+        betweenLeft: lastCol.seqOrder,
+        betweenRight: null
+      });
+    }
+    newColGuides.forEach(function (ncg) {
+      dropGuides.append("line")
+        .attr("x1", ncg.x).attr("x2", ncg.x)
+        .attr("y1", 0).attr("y2", svgH)
+        .attr("stroke", "#22c55e").attr("stroke-width", 1.5)
+        .attr("stroke-dasharray", "3 6").attr("opacity", 0.3);
+    });
+
+    // Find nearest snap target for a given x
+    var findSnapTarget = function (dropX) {
+      var best = null, bestDist = Infinity;
+      // Check existing columns
+      colCenters.forEach(function (cc) {
+        var dist = Math.abs(dropX - cc.x);
+        if (dist < bestDist) { bestDist = dist; best = { type: "existing", seqOrder: cc.seqOrder, x: cc.x }; }
+      });
+      // Check new-column zones (only wins if clearly between columns)
+      newColGuides.forEach(function (ncg) {
+        var dist = Math.abs(dropX - ncg.x);
+        if (dist < nodeW / 2 && dist < bestDist) {
+          var newSeq;
+          if (ncg.betweenRight !== null) {
+            newSeq = Math.round((ncg.betweenLeft + ncg.betweenRight) / 2);
+            if (newSeq === ncg.betweenLeft) newSeq = ncg.betweenLeft + 1;
+            // Shift right columns if needed
+            if (newSeq >= ncg.betweenRight) newSeq = ncg.betweenRight; // will push
+          } else {
+            newSeq = ncg.betweenLeft + 1;
+          }
+          bestDist = dist;
+          best = { type: "new", seqOrder: newSeq, shiftFrom: ncg.betweenRight, x: ncg.x };
+        }
+      });
+      return best;
+    };
+
     // Drag behavior
     var _dragDidMove = false;
     var dragBehavior = d3.drag()
       .on("start", function (event, d) {
         _dragDidMove = false;
         d3.select(this).raise().classed("dragging", true);
+        dropGuides.style("display", null);
       })
       .on("drag", function (event, d) {
         _dragDidMove = true;
@@ -157,24 +230,29 @@ PF.Vis = (function () {
       })
       .on("end", function (event, d) {
         d3.select(this).classed("dragging", false);
+        dropGuides.style("display", "none");
         if (_dragDidMove) {
-          // Persist positions back to the node object
+          var dropX = nodePositions[d.id].x + nodeW / 2;
+          var snap = findSnapTarget(dropX);
           var node = M().getNode(d.id);
-          if (node) {
-            node.x_pos = nodePositions[d.id].x;
-            node.y_pos = nodePositions[d.id].y;
-          }
-          // Grow SVG if node was dragged near edge
-          var maxX = 0, maxY = 0;
-          Object.keys(nodePositions).forEach(function (k) {
-            maxX = Math.max(maxX, nodePositions[k].x + nodeW + 40);
-            maxY = Math.max(maxY, nodePositions[k].y + nodeH + 40);
-          });
-          if (maxX > svgW || maxY > svgH) {
-            svgW = Math.max(svgW, maxX);
-            svgH = Math.max(svgH, maxY);
-            svg.attr("width", svgW).attr("height", svgH)
-               .attr("viewBox", "0 0 " + svgW + " " + svgH);
+          if (snap && node) {
+            if (snap.type === "new" && snap.shiftFrom !== null) {
+              // Push all nodes at shiftFrom and above up by 1
+              M().getNodesSorted().forEach(function (n) {
+                if (n.id !== d.id && n.sequence_order >= snap.shiftFrom) {
+                  n.sequence_order += 1;
+                }
+              });
+            }
+            node.sequence_order = snap.seqOrder;
+            // Clear visual positions so auto-layout recomputes
+            M().getNodesSorted().forEach(function (n) {
+              delete n.x_pos;
+              delete n.y_pos;
+            });
+            // Redraw everything with new structure
+            drawPipeline(containerId, onNodeClick);
+            showPipelineSummary();
           }
         }
       });
