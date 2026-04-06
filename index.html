@@ -234,6 +234,46 @@
     </div>
   </div>
 
+  <!-- Chat drawer -->
+  <div id="chat-drawer" class="chat-drawer collapsed">
+    <div class="chat-header" id="chat-toggle">
+      <span>&#9733; AI Assistant</span>
+      <span class="chat-toggle-icon">&#9650;</span>
+    </div>
+    <div class="chat-body">
+      <div id="chat-messages">
+        <div class="chat-msg system">Ask me to build or analyze your institutional pathway. Examples: "Add a judicial review node after presidential signature" or "What's the bottleneck?"</div>
+      </div>
+      <div class="chat-input-row">
+        <input type="text" id="chat-input" placeholder="Type a message..." autocomplete="off">
+        <button id="chat-send">&#9654;</button>
+      </div>
+      <div class="chat-footer">
+        <button id="chat-settings-btn" class="chat-link">Settings</button>
+        <button id="chat-clear-btn" class="chat-link">Clear</button>
+        <span id="chat-status" class="chat-status"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat settings dialog -->
+  <div id="chat-settings-dialog" class="dialog-overlay" style="display:none">
+    <div class="dialog">
+      <h3>AI Assistant Settings</h3>
+      <form id="chat-settings-form">
+        <label>Proxy URL <input type="text" name="proxyUrl" placeholder="https://your-backend.up.railway.app/api/policymaker-chat"></label>
+        <p style="font-size:0.75rem;color:#6b7685;margin:-0.4rem 0 0.5rem;">Leave empty to use direct HDSI mode below.</p>
+        <label>HDSI Base URL <input type="text" name="baseUrl" placeholder="https://go.apis.huit.harvard.edu/ais-openai-direct-limited-schools/v1"></label>
+        <label>HDSI API Key <input type="password" name="apiKey" placeholder="(institutional key)"></label>
+        <label>Model <input type="text" name="model" value="gpt-4o-mini"></label>
+        <div class="dialog-actions">
+          <button type="submit" class="btn-primary">Save</button>
+          <button type="button" class="btn-cancel" id="btn-cancel-chat-settings">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Player-Node assignment dialog -->
   <div id="assign-dialog" class="dialog-overlay" style="display:none">
     <div class="dialog wide">
@@ -249,6 +289,7 @@
   <script src="js/pf.model.js"></script>
   <script src="js/pf.engine.js"></script>
   <script src="js/pf.vis.js"></script>
+  <script src="js/pf.agent.js"></script>
   <script src="js/pf.ui.js"></script>
   <script src="js/demo-project.js"></script>
   <script src="js/pf.main.js"></script>

@@ -272,6 +272,85 @@ PF.UI = (function () {
         }
       });
     });
+
+    // ── Chat drawer ──────────────────────────────────────────────
+    PF.Agent.loadConfig();
+
+    var chatDrawer = document.getElementById("chat-drawer");
+    document.getElementById("chat-toggle").addEventListener("click", function () {
+      chatDrawer.classList.toggle("collapsed");
+      chatDrawer.classList.toggle("expanded");
+      if (chatDrawer.classList.contains("expanded")) {
+        document.getElementById("chat-input").focus();
+      }
+    });
+
+    var chatSend = function () {
+      var input = document.getElementById("chat-input");
+      var text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+
+      var sendBtn = document.getElementById("chat-send");
+      sendBtn.disabled = true;
+      document.getElementById("chat-status").textContent = "Thinking...";
+
+      PF.Agent.sendMessage(text,
+        function onUpdate(msg) {
+          var container = document.getElementById("chat-messages");
+          var div = document.createElement("div");
+          div.className = "chat-msg " + msg.role;
+          div.textContent = msg.content;
+          container.appendChild(div);
+          container.scrollTop = container.scrollHeight;
+        },
+        function onComplete() {
+          sendBtn.disabled = false;
+          document.getElementById("chat-status").textContent = "";
+          document.getElementById("chat-input").focus();
+        }
+      );
+    };
+
+    document.getElementById("chat-send").addEventListener("click", chatSend);
+    document.getElementById("chat-input").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") chatSend();
+    });
+
+    document.getElementById("chat-clear-btn").addEventListener("click", function () {
+      PF.Agent.resetConversation();
+      var container = document.getElementById("chat-messages");
+      container.innerHTML = '<div class="chat-msg system">Conversation cleared.</div>';
+    });
+
+    // Chat settings
+    document.getElementById("chat-settings-btn").addEventListener("click", function () {
+      var form = document.getElementById("chat-settings-form");
+      var cfg = PF.Agent.config();
+      form.proxyUrl.value = cfg.proxyUrl || "";
+      form.baseUrl.value = cfg.baseUrl || "";
+      form.apiKey.value = cfg.apiKey || "";
+      form.model.value = cfg.model || "gpt-4o-mini";
+      document.getElementById("chat-settings-dialog").style.display = "flex";
+    });
+
+    document.getElementById("btn-cancel-chat-settings").addEventListener("click", function () {
+      document.getElementById("chat-settings-dialog").style.display = "none";
+    });
+
+    document.getElementById("chat-settings-form").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var form = e.target;
+      PF.Agent.setConfig({
+        proxyUrl: form.proxyUrl.value.trim(),
+        baseUrl: form.baseUrl.value.trim(),
+        apiKey: form.apiKey.value.trim(),
+        model: form.model.value.trim() || "gpt-4o-mini"
+      });
+      document.getElementById("chat-settings-dialog").style.display = "none";
+      document.getElementById("chat-status").textContent = "Settings saved";
+      setTimeout(function () { document.getElementById("chat-status").textContent = ""; }, 2000);
+    });
   };
 
   return {
