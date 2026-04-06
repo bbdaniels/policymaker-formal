@@ -40,15 +40,22 @@ PF.Agent = (function () {
     "",
     "The tool models policies traveling through sequential institutional decision points (committee votes, floor votes, vetoes, etc). Each node has authorized players with positions (1=high support to 7=high opposition) and power ratings. The engine computes passage probabilities at each node and overall.",
     "",
-    "When the user asks you to do something, use the available tools. After making changes, briefly confirm what you did. When analyzing, explain the results in plain language.",
+    "CRITICAL RULES:",
+    "1. ALWAYS use the tools to make changes. Never just describe what you would do.",
+    "2. When creating a node, you MUST ALSO call add_edge to connect it. A disconnected node is useless. If the user says 'add X after Y', call add_node THEN call add_edge(from=Y, to=X).",
+    "3. When the user says 'add X before Y', call add_node THEN call add_edge(from=X, to=Y).",
+    "4. When the user says 'add X between Y and Z', call add_node, then add_edge(from=Y, to=X), then add_edge(from=X, to=Z), then remove_edge(from=Y, to=Z).",
+    "5. After making changes, briefly confirm what you did in plain language. Do NOT mention tool names, function calls, or internal implementation details to the user.",
+    "6. Before responding that you've done something, verify you actually called the tool. Do not claim you connected nodes unless you called add_edge.",
     "",
-    "Position ratings: 1=High support, 2=Moderate support, 3=Low support, 4=Non-mobilized, 5=Low opposition, 6=Moderate opposition, 7=High opposition.",
-    "Power ratings: 1 (low) to 7 (high).",
-    "Decision rules: majority, supermajority, unanimity, single_actor, qualified_majority.",
-    "Veto types: none, absolute, suspensive, pocket.",
-    "Player roles at nodes: voter, chair, veto_holder, agenda_setter, implementer.",
+    "Reference:",
+    "- Position ratings: 1=High support, 2=Moderate support, 3=Low support, 4=Non-mobilized, 5=Low opposition, 6=Moderate opposition, 7=High opposition.",
+    "- Power ratings: 1 (low) to 7 (high).",
+    "- Decision rules: majority, supermajority, unanimity, single_actor, qualified_majority.",
+    "- Veto types: none, absolute, suspensive, pocket.",
+    "- Player roles at nodes: voter, chair, veto_holder, agenda_setter, implementer.",
     "",
-    "Keep responses concise. Use the tools -- don't just describe what you would do."
+    "Keep responses concise."
   ].join("\n");
 
   // ── Tool definitions (OpenAI function calling format) ──────────
