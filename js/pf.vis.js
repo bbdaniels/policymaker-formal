@@ -53,24 +53,54 @@ PF.Vis = (function () {
     var resultMap = {};
     analysis.nodes.forEach(function (nr) { resultMap[nr.node.id] = nr.result; });
 
-    // Layout: group by sequence_order, parallel nodes stack vertically
-    var seqGroups = {};
-    nodes.forEach(function (n) {
-      var seq = n.sequence_order || 0;
-      if (!seqGroups[seq]) seqGroups[seq] = [];
-      seqGroups[seq].push(n);
-    });
-    var seqKeys = Object.keys(seqGroups).sort(function (a, b) { return a - b; });
-
     // Dimensions
-    var nodeW = 160, nodeH = 72, padX = 80, padY = 24;
+    var nodeW = 180, nodeH = 72, padX = 80, padY = 24;
     var marginTop = 30, marginLeft = 40;
+
+    // Derive column layout from edge topology (longest-path / topological depth)
+    var edges = M().getEdges();
+    var inDegree = {}, depth = {};
+    nodes.forEach(function (n) { inDegree[n.id] = 0; depth[n.id] = 0; });
+    edges.forEach(function (e) {
+      if (inDegree[e.to_node_id] !== undefined) inDegree[e.to_node_id]++;
+    });
+
+    // Longest-path BFS: depth = max(depth of all predecessors) + 1
+    var changed = true;
+    var iterations = 0;
+    while (changed && iterations < 100) {
+      changed = false;
+      iterations++;
+      edges.forEach(function (e) {
+        if (depth[e.from_node_id] !== undefined && depth[e.to_node_id] !== undefined) {
+          var newDepth = depth[e.from_node_id] + 1;
+          if (newDepth > depth[e.to_node_id]) {
+            depth[e.to_node_id] = newDepth;
+            changed = true;
+          }
+        }
+      });
+    }
+
+    // Group nodes by depth column
+    var colGroups = {};
+    nodes.forEach(function (n) {
+      var col = depth[n.id] || 0;
+      if (!colGroups[col]) colGroups[col] = [];
+      colGroups[col].push(n);
+    });
+    var colKeys = Object.keys(colGroups).sort(function (a, b) { return a - b; });
+
+    // Sort nodes within each column by sequence_order (as vertical hint)
+    colKeys.forEach(function (k) {
+      colGroups[k].sort(function (a, b) { return (a.sequence_order || 0) - (b.sequence_order || 0); });
+    });
 
     // Compute max stack height
     var maxStack = 0;
-    seqKeys.forEach(function (k) { maxStack = Math.max(maxStack, seqGroups[k].length); });
+    colKeys.forEach(function (k) { maxStack = Math.max(maxStack, colGroups[k].length); });
 
-    var svgW = marginLeft + seqKeys.length * (nodeW + padX);
+    var svgW = marginLeft + colKeys.length * (nodeW + padX) + 40;
     var svgH = marginTop + maxStack * (nodeH + padY) + 40;
 
     var svg = d3.select("#" + containerId)
@@ -79,19 +109,60 @@ PF.Vis = (function () {
       .attr("height", svgH)
       .attr("viewBox", "0 0 " + svgW + " " + svgH);
 
-    // Assign positions (use saved positions if available)
+    // Assign positions (use saved x_pos/y_pos if available)
     var nodePositions = {};
-    seqKeys.forEach(function (seqKey, col) {
-      var group = seqGroups[seqKey];
+    colKeys.forEach(function (colKey, colIdx) {
+      var group = colGroups[colKey];
       var groupH = group.length * (nodeH + padY) - padY;
       var startY = marginTop + (svgH - marginTop - 40 - groupH) / 2;
 
       group.forEach(function (node, row) {
-        var x = (node.x_pos !== undefined && node.x_pos !== null) ? node.x_pos : marginLeft + col * (nodeW + padX);
-        var y = (node.y_pos !== undefined && node.y_pos !== null) ? node.y_pos : startY + row * (nodeH + padY);
-        nodePositions[node.id] = { x: x, y: y, col: col };
+        var x = (node.x_pos != null) ? node.x_pos : marginLeft + colIdx * (nodeW + padX);
+        var y = (node.y_pos != null) ? node.y_pos : startY + row * (nodeH + padY);
+        nodePositions[node.id] = { x: x, y: y, col: colIdx };
       });
     });
+
+    // Nearest-side anchor: pick the pair of points (source side, target side) that minimizes distance
+    var anchorPoints = function (fromId, toId) {
+      var fp = nodePositions[fromId], tp = nodePositions[toId];
+      if (!fp || !tp) return { x1: 0, y1: 0, x2: 0, y2: 0 };
+
+      var sides = [
+        { label: "right",  sx: fp.x + nodeW,     sy: fp.y + nodeH / 2, tx: tp.x,             ty: tp.y + nodeH / 2 },
+        { label: "bottom", sx: fp.x + nodeW / 2, sy: fp.y + nodeH,     tx: tp.x + nodeW / 2, ty: tp.y },
+        { label: "top",    sx: fp.x + nodeW / 2, sy: fp.y,             tx: tp.x + nodeW / 2, ty: tp.y + nodeH },
+        { label: "left",   sx: fp.x,             sy: fp.y + nodeH / 2, tx: tp.x + nodeW,     ty: tp.y + nodeH / 2 }
+      ];
+
+      // For each source side, pick the nearest target side
+      var best = null, bestDist = Infinity;
+      var srcSides = [
+        { x: fp.x + nodeW,     y: fp.y + nodeH / 2 },  // right
+        { x: fp.x + nodeW / 2, y: fp.y + nodeH },       // bottom
+        { x: fp.x + nodeW / 2, y: fp.y },                // top
+        { x: fp.x,             y: fp.y + nodeH / 2 }    // left
+      ];
+      var tgtSides = [
+        { x: tp.x,             y: tp.y + nodeH / 2 },  // left
+        { x: tp.x + nodeW / 2, y: tp.y },                // top
+        { x: tp.x + nodeW / 2, y: tp.y + nodeH },       // bottom
+        { x: tp.x + nodeW,     y: tp.y + nodeH / 2 }   // right
+      ];
+
+      srcSides.forEach(function (s) {
+        tgtSides.forEach(function (t) {
+          var dx = t.x - s.x, dy = t.y - s.y;
+          var dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < bestDist) {
+            bestDist = dist;
+            best = { x1: s.x, y1: s.y, x2: t.x, y2: t.y };
+          }
+        });
+      });
+
+      return best || { x1: fp.x + nodeW, y1: fp.y + nodeH / 2, x2: tp.x, y2: tp.y + nodeH / 2 };
+    };
 
     // Edge-drawing state
     var _connectFrom = null;
@@ -122,10 +193,10 @@ PF.Vis = (function () {
     // Thick invisible hit area for clicking
     edgeGroups.append("line")
       .attr("class", "edge-hitarea")
-      .attr("x1", function (d) { return nodePositions[d.from] ? nodePositions[d.from].x + nodeW : 0; })
-      .attr("y1", function (d) { return nodePositions[d.from] ? nodePositions[d.from].y + nodeH / 2 : 0; })
-      .attr("x2", function (d) { return nodePositions[d.to] ? nodePositions[d.to].x : 0; })
-      .attr("y2", function (d) { return nodePositions[d.to] ? nodePositions[d.to].y + nodeH / 2 : 0; })
+      .each(function (d) {
+        var a = anchorPoints(d.from, d.to);
+        d3.select(this).attr("x1", a.x1).attr("y1", a.y1).attr("x2", a.x2).attr("y2", a.y2);
+      })
       .attr("stroke", "transparent")
       .attr("stroke-width", 14)
       .style("cursor", "pointer")
@@ -139,107 +210,31 @@ PF.Vis = (function () {
     // Visible line
     var edgeLines = edgeGroups.append("line")
       .attr("class", "edge-line")
-      .attr("x1", function (d) { return nodePositions[d.from] ? nodePositions[d.from].x + nodeW : 0; })
-      .attr("y1", function (d) { return nodePositions[d.from] ? nodePositions[d.from].y + nodeH / 2 : 0; })
-      .attr("x2", function (d) { return nodePositions[d.to] ? nodePositions[d.to].x : 0; })
-      .attr("y2", function (d) { return nodePositions[d.to] ? nodePositions[d.to].y + nodeH / 2 : 0; })
+      .each(function (d) {
+        var a = anchorPoints(d.from, d.to);
+        d3.select(this).attr("x1", a.x1).attr("y1", a.y1).attr("x2", a.x2).attr("y2", a.y2);
+      })
       .attr("stroke", "#cbd5e1")
       .attr("stroke-width", 2)
       .attr("marker-end", "url(#arrow)")
       .style("pointer-events", "none");
 
-    // Helper to update all edge positions from nodePositions
+    // Helper to update all edge positions from nodePositions (during drag)
     var updateEdges = function () {
-      edgeGroups.selectAll("line").each(function (d) {
-        var line = d3.select(this);
-        if (nodePositions[d.from] && nodePositions[d.to]) {
-          line.attr("x1", nodePositions[d.from].x + nodeW)
-              .attr("y1", nodePositions[d.from].y + nodeH / 2)
-              .attr("x2", nodePositions[d.to].x)
-              .attr("y2", nodePositions[d.to].y + nodeH / 2);
-        }
+      edgeGroups.each(function (d) {
+        var a = anchorPoints(d.from, d.to);
+        d3.select(this).selectAll("line")
+          .attr("x1", a.x1).attr("y1", a.y1)
+          .attr("x2", a.x2).attr("y2", a.y2);
       });
     };
 
-    // Column geometry for snap targets
-    var colCenters = [];  // { x, seqOrder } for each column
-    seqKeys.forEach(function (seqKey, col) {
-      colCenters.push({
-        x: marginLeft + col * (nodeW + padX) + nodeW / 2,
-        seqOrder: parseInt(seqKey)
-      });
-    });
-
-    // Drop guide lines (hidden until drag)
-    var dropGuides = svg.append("g").attr("class", "drop-guides").style("display", "none");
-    colCenters.forEach(function (cc) {
-      dropGuides.append("line")
-        .attr("x1", cc.x - nodeW / 2 - 4).attr("x2", cc.x - nodeW / 2 - 4)
-        .attr("y1", 0).attr("y2", svgH)
-        .attr("stroke", "#2563eb").attr("stroke-width", 1.5)
-        .attr("stroke-dasharray", "6 4").attr("opacity", 0.4);
-    });
-    // "New column" guide between each pair + at far right
-    var newColGuides = [];
-    for (var gi = 0; gi < colCenters.length - 1; gi++) {
-      newColGuides.push({
-        x: (colCenters[gi].x + colCenters[gi + 1].x) / 2,
-        betweenLeft: colCenters[gi].seqOrder,
-        betweenRight: colCenters[gi + 1].seqOrder
-      });
-    }
-    // New column at far right
-    if (colCenters.length > 0) {
-      var lastCol = colCenters[colCenters.length - 1];
-      newColGuides.push({
-        x: lastCol.x + nodeW / 2 + padX,
-        betweenLeft: lastCol.seqOrder,
-        betweenRight: null
-      });
-    }
-    newColGuides.forEach(function (ncg) {
-      dropGuides.append("line")
-        .attr("x1", ncg.x).attr("x2", ncg.x)
-        .attr("y1", 0).attr("y2", svgH)
-        .attr("stroke", "#22c55e").attr("stroke-width", 1.5)
-        .attr("stroke-dasharray", "3 6").attr("opacity", 0.3);
-    });
-
-    // Find nearest snap target for a given x
-    var findSnapTarget = function (dropX) {
-      var best = null, bestDist = Infinity;
-      // Check existing columns
-      colCenters.forEach(function (cc) {
-        var dist = Math.abs(dropX - cc.x);
-        if (dist < bestDist) { bestDist = dist; best = { type: "existing", seqOrder: cc.seqOrder, x: cc.x }; }
-      });
-      // Check new-column zones (only wins if clearly between columns)
-      newColGuides.forEach(function (ncg) {
-        var dist = Math.abs(dropX - ncg.x);
-        if (dist < nodeW / 2 && dist < bestDist) {
-          var newSeq;
-          if (ncg.betweenRight !== null) {
-            newSeq = Math.round((ncg.betweenLeft + ncg.betweenRight) / 2);
-            if (newSeq === ncg.betweenLeft) newSeq = ncg.betweenLeft + 1;
-            // Shift right columns if needed
-            if (newSeq >= ncg.betweenRight) newSeq = ncg.betweenRight; // will push
-          } else {
-            newSeq = ncg.betweenLeft + 1;
-          }
-          bestDist = dist;
-          best = { type: "new", seqOrder: newSeq, shiftFrom: ncg.betweenRight, x: ncg.x };
-        }
-      });
-      return best;
-    };
-
-    // Drag behavior
+    // Drag behavior — purely visual repositioning (structure is defined by edges)
     var _dragDidMove = false;
     var dragBehavior = d3.drag()
       .on("start", function (event, d) {
         _dragDidMove = false;
         d3.select(this).raise().classed("dragging", true);
-        dropGuides.style("display", null);
       })
       .on("drag", function (event, d) {
         _dragDidMove = true;
@@ -252,29 +247,24 @@ PF.Vis = (function () {
       })
       .on("end", function (event, d) {
         d3.select(this).classed("dragging", false);
-        dropGuides.style("display", "none");
         if (_dragDidMove) {
-          var dropX = nodePositions[d.id].x + nodeW / 2;
-          var snap = findSnapTarget(dropX);
+          // Save position to node object
           var node = M().getNode(d.id);
-          if (snap && node) {
-            if (snap.type === "new" && snap.shiftFrom !== null) {
-              // Push all nodes at shiftFrom and above up by 1
-              M().getNodesSorted().forEach(function (n) {
-                if (n.id !== d.id && n.sequence_order >= snap.shiftFrom) {
-                  n.sequence_order += 1;
-                }
-              });
-            }
-            node.sequence_order = snap.seqOrder;
-            // Clear visual positions so auto-layout recomputes
-            M().getNodesSorted().forEach(function (n) {
-              delete n.x_pos;
-              delete n.y_pos;
-            });
-            // Redraw everything with new structure
-            drawPipeline(containerId, onNodeClick);
-            showPipelineSummary();
+          if (node) {
+            node.x_pos = nodePositions[d.id].x;
+            node.y_pos = nodePositions[d.id].y;
+          }
+          // Grow SVG if needed
+          var maxX = 0, maxY = 0;
+          Object.keys(nodePositions).forEach(function (k) {
+            maxX = Math.max(maxX, nodePositions[k].x + nodeW + 40);
+            maxY = Math.max(maxY, nodePositions[k].y + nodeH + 40);
+          });
+          if (maxX > svgW || maxY > svgH) {
+            svgW = Math.max(svgW, maxX);
+            svgH = Math.max(svgH, maxY);
+            svg.attr("width", svgW).attr("height", svgH)
+               .attr("viewBox", "0 0 " + svgW + " " + svgH);
           }
         }
       });
