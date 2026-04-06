@@ -79,7 +79,7 @@ PF.Vis = (function () {
       .attr("height", svgH)
       .attr("viewBox", "0 0 " + svgW + " " + svgH);
 
-    // Assign positions
+    // Assign positions (use saved positions if available)
     var nodePositions = {};
     seqKeys.forEach(function (seqKey, col) {
       var group = seqGroups[seqKey];
@@ -87,8 +87,8 @@ PF.Vis = (function () {
       var startY = marginTop + (svgH - marginTop - 40 - groupH) / 2;
 
       group.forEach(function (node, row) {
-        var x = marginLeft + col * (nodeW + padX);
-        var y = startY + row * (nodeH + padY);
+        var x = (node.x_pos !== undefined && node.x_pos !== null) ? node.x_pos : marginLeft + col * (nodeW + padX);
+        var y = (node.y_pos !== undefined && node.y_pos !== null) ? node.y_pos : startY + row * (nodeH + padY);
         nodePositions[node.id] = { x: x, y: y, col: col };
       });
     });
@@ -105,7 +105,18 @@ PF.Vis = (function () {
       });
     }
 
-    svg.selectAll(".pipeline-edge")
+    // Arrow marker
+    svg.append("defs").append("marker")
+      .attr("id", "arrow")
+      .attr("viewBox", "0 0 10 6")
+      .attr("refX", 10).attr("refY", 3)
+      .attr("markerWidth", 8).attr("markerHeight", 6)
+      .attr("orient", "auto")
+      .append("path")
+      .attr("d", "M0,0 L10,3 L0,6 Z")
+      .attr("fill", "#cbd5e1");
+
+    var edgeLines = svg.selectAll(".pipeline-edge")
       .data(edgeData)
       .enter()
       .append("g")
@@ -119,16 +130,54 @@ PF.Vis = (function () {
       .attr("stroke-width", 2)
       .attr("marker-end", "url(#arrow)");
 
-    // Arrow marker
-    svg.append("defs").append("marker")
-      .attr("id", "arrow")
-      .attr("viewBox", "0 0 10 6")
-      .attr("refX", 10).attr("refY", 3)
-      .attr("markerWidth", 8).attr("markerHeight", 6)
-      .attr("orient", "auto")
-      .append("path")
-      .attr("d", "M0,0 L10,3 L0,6 Z")
-      .attr("fill", "#cbd5e1");
+    // Helper to update all edge positions from nodePositions
+    var updateEdges = function () {
+      edgeLines
+        .attr("x1", function (d) { return nodePositions[d.from].x + nodeW; })
+        .attr("y1", function (d) { return nodePositions[d.from].y + nodeH / 2; })
+        .attr("x2", function (d) { return nodePositions[d.to].x; })
+        .attr("y2", function (d) { return nodePositions[d.to].y + nodeH / 2; });
+    };
+
+    // Drag behavior
+    var _dragDidMove = false;
+    var dragBehavior = d3.drag()
+      .on("start", function (event, d) {
+        _dragDidMove = false;
+        d3.select(this).raise().classed("dragging", true);
+      })
+      .on("drag", function (event, d) {
+        _dragDidMove = true;
+        var newX = event.x - nodeW / 2;
+        var newY = event.y - nodeH / 2;
+        nodePositions[d.id].x = newX;
+        nodePositions[d.id].y = newY;
+        d3.select(this).attr("transform", "translate(" + newX + "," + newY + ")");
+        updateEdges();
+      })
+      .on("end", function (event, d) {
+        d3.select(this).classed("dragging", false);
+        if (_dragDidMove) {
+          // Persist positions back to the node object
+          var node = M().getNode(d.id);
+          if (node) {
+            node.x_pos = nodePositions[d.id].x;
+            node.y_pos = nodePositions[d.id].y;
+          }
+          // Grow SVG if node was dragged near edge
+          var maxX = 0, maxY = 0;
+          Object.keys(nodePositions).forEach(function (k) {
+            maxX = Math.max(maxX, nodePositions[k].x + nodeW + 40);
+            maxY = Math.max(maxY, nodePositions[k].y + nodeH + 40);
+          });
+          if (maxX > svgW || maxY > svgH) {
+            svgW = Math.max(svgW, maxX);
+            svgH = Math.max(svgH, maxY);
+            svg.attr("width", svgW).attr("height", svgH)
+               .attr("viewBox", "0 0 " + svgW + " " + svgH);
+          }
+        }
+      });
 
     // Draw nodes
     var nodeGroups = svg.selectAll(".pipeline-node")
@@ -141,10 +190,13 @@ PF.Vis = (function () {
         return "translate(" + p.x + "," + p.y + ")";
       })
       .on("click", function (event, d) {
+        // Only fire click if not dragging
+        if (_dragDidMove) return;
         svg.selectAll(".pipeline-node").classed("selected", false);
         d3.select(this).classed("selected", true);
         if (onNodeClick) onNodeClick(d);
-      });
+      })
+      .call(dragBehavior);
 
     // Node rectangle
     nodeGroups.append("rect")

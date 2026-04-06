@@ -384,8 +384,10 @@ a { color: var(--accent); }
 .pipeline-node rect { transition: stroke-width 0.15s; }
 .pipeline-node:hover rect { stroke-width: 3; }
 .pipeline-node.selected rect { stroke-width: 3; stroke: var(--accent) !important; }
+.pipeline-node.dragging { opacity: 0.85; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.2)); }
+.pipeline-node.dragging rect:first-child { stroke-width: 3; }
 .pipeline-node text { pointer-events: none; }
-.pipeline-edge line { stroke: #94a3b8; stroke-width: 2; }
+.pipeline-edge line { stroke: #94a3b8; stroke-width: 2; transition: none; }
 .pipeline-edge.parallel line { stroke-dasharray: 6 3; }
 
 /* Responsive */

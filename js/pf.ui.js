@@ -245,6 +245,16 @@ PF.UI = (function () {
     document.getElementById("btn-demo").addEventListener("click", loadDemo);
     document.getElementById("file-input").addEventListener("change", onFileSelected);
 
+    // Reset layout
+    document.getElementById("btn-reset-layout").addEventListener("click", function () {
+      M().getNodesSorted().forEach(function (n) {
+        delete n.x_pos;
+        delete n.y_pos;
+      });
+      PF.Vis.drawPipeline("pipeline-svg-container", PF.Vis.showNodeDetail);
+      PF.Vis.showPipelineSummary();
+    });
+
     // Node dialog
     document.getElementById("btn-add-node").addEventListener("click", function () { openNodeDialog(null); });
     document.getElementById("btn-cancel-node").addEventListener("click", closeNodeDialog);
