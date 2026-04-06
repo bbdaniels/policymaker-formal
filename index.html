@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PolicyMaker Formal &mdash; Institutional Analysis</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+  <header id="top-bar">
+    <div class="brand">
+      <h1>PolicyMaker <span class="accent">Formal</span></h1>
+      <span class="subtitle">Institutional Pathway Analysis</span>
+    </div>
+    <div class="project-info">
+      <span id="project-name">No project loaded</span>
+      <span id="project-date"></span>
+    </div>
+    <div class="toolbar">
+      <button id="btn-import" title="Import PolicyMaker 5 JSON">Import PM5</button>
+      <button id="btn-export" title="Export enriched JSON">Export</button>
+      <button id="btn-demo" title="Load demo project">Load Demo</button>
+    </div>
+  </header>
+
+  <div id="app">
+    <nav id="sidebar">
+      <ul>
+        <li class="nav-item active" data-view="pipeline">
+          <span class="nav-icon">&#9655;</span> Pipeline
+        </li>
+        <li class="nav-item" data-view="nodes">
+          <span class="nav-icon">&#9679;</span> Nodes
+        </li>
+        <li class="nav-item" data-view="players">
+          <span class="nav-icon">&#9632;</span> Players
+        </li>
+        <li class="nav-item" data-view="analysis">
+          <span class="nav-icon">&#9733;</span> Analysis
+        </li>
+        <li class="nav-item" data-view="about">
+          <span class="nav-icon">&#9432;</span> About
+        </li>
+      </ul>
+    </nav>
+
+    <main id="content">
+      <!-- Pipeline View -->
+      <section id="view-pipeline" class="view active">
+        <div class="view-header">
+          <h2>Institutional Pipeline</h2>
+          <div class="legend">
+            <span class="leg-item"><span class="dot green"></span> &gt;75% passage</span>
+            <span class="leg-item"><span class="dot yellow"></span> 50&ndash;75%</span>
+            <span class="leg-item"><span class="dot red"></span> &lt;50%</span>
+            <span class="leg-item"><span class="dot gray"></span> No players mapped</span>
+          </div>
+        </div>
+        <div id="pipeline-svg-container"></div>
+        <div id="pipeline-detail">
+          <p class="placeholder">Click a node to see details.</p>
+        </div>
+        <div id="pipeline-summary"></div>
+      </section>
+
+      <!-- Nodes View -->
+      <section id="view-nodes" class="view">
+        <div class="view-header">
+          <h2>Institutional Nodes</h2>
+          <button id="btn-add-node" class="small-btn">+ Add Node</button>
+        </div>
+        <table id="nodes-table" class="data-table">
+          <thead>
+            <tr>
+              <th>Seq</th><th>Name</th><th>Branch</th><th>Level</th>
+              <th>Decision Rule</th><th>Threshold</th><th>Veto</th>
+              <th>Amend?</th><th>Players</th><th>P(pass)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <!-- Players View -->
+      <section id="view-players" class="view">
+        <div class="view-header">
+          <h2>Players (from PolicyMaker 5)</h2>
+          <span class="muted" id="player-count"></span>
+        </div>
+        <table id="players-table" class="data-table">
+          <thead>
+            <tr>
+              <th>Name</th><th>Abbrev</th><th>Position</th>
+              <th>Power</th><th>Stance</th><th>Sector</th>
+              <th>Nodes</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <!-- Analysis View -->
+      <section id="view-analysis" class="view">
+        <div class="view-header"><h2>Pathway Analysis</h2></div>
+        <div class="analysis-grid">
+          <div class="analysis-card" id="card-bottleneck">
+            <h3>Bottleneck Node</h3>
+            <div class="card-body"></div>
+          </div>
+          <div class="analysis-card" id="card-overall">
+            <h3>Overall Passage Probability</h3>
+            <div class="card-body"></div>
+          </div>
+          <div class="analysis-card" id="card-veto">
+            <h3>Veto Points</h3>
+            <div class="card-body"></div>
+          </div>
+          <div class="analysis-card" id="card-strategies">
+            <h3>Strategy Impact by Node</h3>
+            <div class="card-body"></div>
+          </div>
+        </div>
+        <div id="analysis-detail"></div>
+      </section>
+
+      <!-- About View -->
+      <section id="view-about" class="view">
+        <div class="about-content">
+          <h2>PolicyMaker Formal</h2>
+          <p>
+            A companion tool for
+            <a href="https://polimap.github.io/policymaker.github.io/" target="_blank">PolicyMaker&nbsp;5</a>
+            (Reich &amp; Cooper, 2023) that adds an <strong>institutional pathway layer</strong>
+            to stakeholder feasibility analysis.
+          </p>
+          <h3>What PolicyMaker 5 does</h3>
+          <p>
+            PM5 maps political players, their positions (support/oppose), power levels,
+            and interests, then computes aggregate political feasibility for a proposed policy.
+            It answers: <em>"Given these players, is the policy politically feasible?"</em>
+          </p>
+          <h3>What this tool adds</h3>
+          <p>
+            Real policies travel through sequential <strong>institutional decision points</strong> &mdash;
+            committee votes, floor votes, executive vetoes, judicial review, regulatory rulemaking,
+            sub-national implementation. PolicyMaker Formal models this pathway as a directed graph
+            and computes <strong>per-node passage probabilities</strong> using PM5's player data.
+          </p>
+          <h3>Theoretical grounding</h3>
+          <ul>
+            <li><strong>Tsebelis (2002)</strong> &mdash; Veto Players: policy change requires all veto players to agree</li>
+            <li><strong>Ostrom (2005)</strong> &mdash; IAD Framework: action arenas with position, authority, and aggregation rules</li>
+            <li><strong>Cox &amp; McCubbins (2005)</strong> &mdash; agenda-setting as gatekeeping power</li>
+            <li><strong>Kingdon (1984)</strong> &mdash; institutional windows in the policy process</li>
+          </ul>
+          <h3>Workflow</h3>
+          <ol>
+            <li>Export your project from PolicyMaker 5 as <code>.json</code></li>
+            <li>Import it here via the <strong>Import PM5</strong> button</li>
+            <li>Define institutional nodes (or use a template)</li>
+            <li>Map PM5 players to nodes where they hold formal authority</li>
+            <li>Read the pipeline &mdash; identify bottlenecks and target strategies</li>
+          </ol>
+          <h3>Source</h3>
+          <p>
+            <a href="https://github.com/bbdaniels/policymaker-formal" target="_blank">github.com/bbdaniels/policymaker-formal</a>
+            &mdash; MIT License.
+          </p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Hidden file input for PM5 import -->
+  <input type="file" id="file-input" accept=".json" style="display:none">
+
+  <!-- Node editor dialog -->
+  <div id="node-dialog" class="dialog-overlay" style="display:none">
+    <div class="dialog">
+      <h3 id="node-dialog-title">Edit Node</h3>
+      <form id="node-form">
+        <label>Name <input type="text" name="name" required></label>
+        <label>Branch
+          <select name="branch">
+            <option value="legislative">Legislative</option>
+            <option value="executive">Executive</option>
+            <option value="judicial">Judicial</option>
+            <option value="regulatory">Regulatory</option>
+            <option value="subnational">Sub-national</option>
+          </select>
+        </label>
+        <label>Level
+          <select name="level">
+            <option value="national">National</option>
+            <option value="state">State/Provincial</option>
+            <option value="local">Local</option>
+          </select>
+        </label>
+        <label>Decision Rule
+          <select name="decision_rule">
+            <option value="majority">Simple Majority</option>
+            <option value="supermajority">Supermajority</option>
+            <option value="unanimity">Unanimity</option>
+            <option value="single_actor">Single Actor</option>
+            <option value="qualified_majority">Qualified Majority</option>
+          </select>
+        </label>
+        <label>Threshold <input type="number" name="threshold" min="0" max="1" step="0.01" value="0.5"></label>
+        <label>Veto Type
+          <select name="veto_type">
+            <option value="none">None</option>
+            <option value="absolute">Absolute</option>
+            <option value="suspensive">Suspensive (overridable)</option>
+            <option value="pocket">Pocket</option>
+          </select>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" name="amendment_power"> Can amend policy
+        </label>
+        <label>Sequence Order <input type="number" name="sequence_order" min="1" value="1"></label>
+        <label>Parallel Group <input type="text" name="parallel_group" placeholder="(optional)"></label>
+        <label>Gate-control Player
+          <select name="gate_control_player_id">
+            <option value="">None</option>
+          </select>
+        </label>
+        <div class="dialog-actions">
+          <button type="submit" class="btn-primary">Save</button>
+          <button type="button" class="btn-cancel" id="btn-cancel-node">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Player-Node assignment dialog -->
+  <div id="assign-dialog" class="dialog-overlay" style="display:none">
+    <div class="dialog wide">
+      <h3>Assign Players to Node: <span id="assign-node-name"></span></h3>
+      <div id="assign-player-list"></div>
+      <div class="dialog-actions">
+        <button class="btn-primary" id="btn-save-assign">Save</button>
+        <button class="btn-cancel" id="btn-cancel-assign">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/pf.model.js"></script>
+  <script src="js/pf.engine.js"></script>
+  <script src="js/pf.vis.js"></script>
+  <script src="js/pf.ui.js"></script>
+  <script src="js/demo-project.js"></script>
+  <script src="js/pf.main.js"></script>
+</body>
+</html>
