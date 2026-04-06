@@ -292,9 +292,17 @@ PF.Vis = (function () {
       html += '</div>';
     }
 
-    html += '<button class="btn-assign-players" onclick="PF.UI.openAssignDialog(' + node.id + ')">Edit player assignments</button>';
+    html += '<button class="btn-assign-players" id="btn-edit-node-' + node.id + '">Edit node</button> ';
+    html += '<button class="btn-assign-players" id="btn-assign-node-' + node.id + '">Edit player assignments</button>';
 
     panel.innerHTML = html;
+
+    document.getElementById('btn-edit-node-' + node.id).addEventListener('click', function () {
+      PF.UI.openNodeDialog(node.id);
+    });
+    document.getElementById('btn-assign-node-' + node.id).addEventListener('click', function () {
+      PF.UI.openAssignDialog(node.id);
+    });
   };
 
   // ── Pipeline Summary ───────────────────────────────────────────
@@ -341,6 +349,10 @@ PF.Vis = (function () {
         '<td class="num prob-cell ' + probClass(result.prob) + '">' +
         (result.prob !== null ? Math.round(result.prob * 100) + "%" : "—") + '</td>';
 
+      tr.style.cursor = "pointer";
+      tr.addEventListener("click", (function (nid) {
+        return function () { PF.UI.openNodeDialog(nid); };
+      })(node.id));
       tbody.appendChild(tr);
     });
   };
