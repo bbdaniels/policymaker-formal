@@ -195,6 +195,45 @@ PF.Agent = (function () {
     {
       type: "function",
       function: {
+        name: "add_player",
+        description: "Create a new player/stakeholder. Use this when the user mentions a person, organization, or group that doesn't exist yet.",
+        parameters: {
+          type: "object",
+          properties: {
+            name: { type: "string", description: "Full name, e.g. 'Chief Justice John Roberts'" },
+            abbrev: { type: "string", description: "Short abbreviation, e.g. 'ROBERTS'" },
+            position: { type: "integer", description: "1=High support to 7=High opposition", minimum: 1, maximum: 7 },
+            power: { type: "integer", description: "1 (low) to 7 (high)", minimum: 1, maximum: 7 },
+            sector: { type: "string", description: "e.g. Governmental, Political, Commercial, Professional, Social" },
+            obstacle: { type: "string" },
+            opportunity: { type: "string" }
+          },
+          required: ["name", "position", "power"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "edit_player",
+        description: "Edit a player's properties (position, power, sector, etc.)",
+        parameters: {
+          type: "object",
+          properties: {
+            player_name: { type: "string", description: "Player name or abbreviation to find" },
+            position: { type: "integer", description: "1=High support to 7=High opposition", minimum: 1, maximum: 7 },
+            power: { type: "integer", description: "1 (low) to 7 (high)", minimum: 1, maximum: 7 },
+            sector: { type: "string" },
+            obstacle: { type: "string" },
+            opportunity: { type: "string" }
+          },
+          required: ["player_name"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
         name: "unassign_player",
         description: "Remove a player from a node",
         parameters: {
@@ -319,10 +358,34 @@ PF.Agent = (function () {
         M().removeEdge(reFrom.id, reTo.id);
         return { success: true, removed: reFrom.name + " → " + reTo.name };
 
+      case "add_player":
+        var newP = M().addPlayer({
+          name: args.name,
+          abbrev: args.abbrev || "",
+          position: args.position || 4,
+          power: args.power || 4,
+          sector: args.sector || "",
+          obstacle: args.obstacle || "",
+          opportunity: args.opportunity || ""
+        });
+        return { success: true, player_id: newP.Player_ID, name: newP.Player_name };
+
+      case "edit_player":
+        var ep = findPlayer(args.player_name);
+        if (!ep) return { error: "Player not found: " + args.player_name };
+        var pFields = {};
+        if (args.position !== undefined) pFields.Position_rating = args.position;
+        if (args.power !== undefined) pFields.Power_rating = args.power;
+        if (args.sector !== undefined) pFields.Sector = args.sector;
+        if (args.obstacle !== undefined) pFields.Player_obstacle = args.obstacle;
+        if (args.opportunity !== undefined) pFields.Player_opportunity = args.opportunity;
+        M().updatePlayer(ep.Player_ID || ep.id, pFields);
+        return { success: true, player: ep.Player_name, updated: Object.keys(pFields) };
+
       case "assign_player":
         var ap = findPlayer(args.player_name);
         var an = findNode(args.node_name);
-        if (!ap) return { error: "Player not found: " + args.player_name };
+        if (!ap) return { error: "Player not found: " + args.player_name + ". Use add_player first to create them." };
         if (!an) return { error: "Node not found: " + args.node_name };
         M().assignPlayer(an.id, ap.Player_ID || ap.id, args.role || "voter", args.vote_weight || 1.0);
         return { success: true, player: ap.Player_name, node: an.name, role: args.role || "voter" };

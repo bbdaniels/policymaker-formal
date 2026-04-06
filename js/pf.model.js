@@ -183,9 +183,39 @@ PF.Model = (function () {
     return MODEL.Edge.filter(function (e) { return e.to_node_id === nodeId; });
   };
 
-  // ── Player helpers ─────────────────────────────────────────────
+  // ── Player CRUD ────────────────────────────────────────────────
   var getPlayer = function (id) {
     return MODEL.Player.find(function (p) { return (p.Player_ID || p.id) === id; }) || null;
+  };
+
+  var addPlayer = function (fields) {
+    var id = _nextId("Player");
+    var player = {
+      Player_ID: id, id: id,
+      Player_name: fields.name || "New Player",
+      Player_abbrev: fields.abbrev || "",
+      Position_rating: fields.position || 4,
+      Power_rating: fields.power || 4,
+      Support_vs_opposition: (fields.position || 4) <= 3 ? 1 : ((fields.position || 4) >= 5 ? 2 : 3),
+      Sector: fields.sector || "",
+      Level: fields.level || "National",
+      Org_or_indiv: fields.org ? 1 : 2,
+      Player_obstacle: fields.obstacle || "",
+      Player_opportunity: fields.opportunity || "",
+      Include: true
+    };
+    MODEL.Player.push(player);
+    return player;
+  };
+
+  var updatePlayer = function (id, fields) {
+    var player = getPlayer(id);
+    if (!player) return null;
+    Object.keys(fields).forEach(function (k) { player[k] = fields[k]; });
+    if (fields.Position_rating !== undefined) {
+      player.Support_vs_opposition = fields.Position_rating <= 3 ? 1 : (fields.Position_rating >= 5 ? 2 : 3);
+    }
+    return player;
   };
 
   var getPlayers = function () { return MODEL.Player; };
@@ -207,6 +237,8 @@ PF.Model = (function () {
     getNodePlayers: getNodePlayers,
     getPlayerNodes: getPlayerNodes,
     getPlayer: getPlayer,
+    addPlayer: addPlayer,
+    updatePlayer: updatePlayer,
     getPlayers: getPlayers,
     getStrategies: getStrategies,
     getProject: getProject,
