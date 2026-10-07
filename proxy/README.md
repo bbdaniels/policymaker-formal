@@ -86,17 +86,15 @@ would land in shell history and the process list.
 never stored in this repository: `.wrangler/`, `.dev.vars*` and `.env*` are
 ignored by the root `.gitignore`.
 
-## Relation to the root `wrangler.jsonc`
+## Why this config is `wrangler.jsonc`
 
-The `wrangler.jsonc` at the repository root is a separate Worker
-configuration named `policymaker-formal`, which serves the repository's
-static files as a site at `policymaker-formal.bbdaniels.workers.dev`. It has
-nothing to do with this proxy.
+Wrangler looks for a `.jsonc` config in every parent directory before it
+considers a `.toml` one. This repository once had a `wrangler.jsonc` at its
+root for a separate Worker that served the static files, and a
+`proxy/wrangler.toml` was passed over in favor of it: `wrangler deploy` run
+from `proxy/` published the whole repository to that other Worker. The root
+config and its Worker were removed on 2026-10-06 (GitHub Pages serves the
+site), and this directory's config is a `.jsonc` so that the nearest file of
+the same kind always wins. Do not add a Wrangler config at the repository
+root.
 
-The two can collide. Wrangler looks for a `.jsonc` config in every parent
-directory before it considers a `.toml` one, so a `proxy/wrangler.toml` is
-passed over in favor of the root file, and `wrangler deploy` run from
-`proxy/` then publishes the whole repository to the site Worker. That is why
-this directory's config is `wrangler.jsonc`: the nearest file of the same
-kind wins. Do not convert it back to TOML, and always run proxy commands from
-inside `proxy/`.
