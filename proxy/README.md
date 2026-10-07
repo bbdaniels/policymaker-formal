@@ -65,7 +65,9 @@ cd proxy
 wrangler deploy
 ```
 
-Keep `name` in `wrangler.toml` unchanged: it fixes the URL the app calls.
+Keep `name` in `wrangler.jsonc` unchanged: it fixes the URL the app calls.
+Before the first deploy from a new checkout, run `wrangler secret list` here
+and confirm it answers for `policymaker-formal-proxy`.
 
 ## Set the secret
 
@@ -88,5 +90,13 @@ ignored by the root `.gitignore`.
 
 The `wrangler.jsonc` at the repository root is a separate Worker
 configuration named `policymaker-formal`, which serves the repository's
-static files as a site. It has nothing to do with this proxy. Run proxy
-commands from inside `proxy/` so wrangler picks up `proxy/wrangler.toml`.
+static files as a site at `policymaker-formal.bbdaniels.workers.dev`. It has
+nothing to do with this proxy.
+
+The two can collide. Wrangler looks for a `.jsonc` config in every parent
+directory before it considers a `.toml` one, so a `proxy/wrangler.toml` is
+passed over in favor of the root file, and `wrangler deploy` run from
+`proxy/` then publishes the whole repository to the site Worker. That is why
+this directory's config is `wrangler.jsonc`: the nearest file of the same
+kind wins. Do not convert it back to TOML, and always run proxy commands from
+inside `proxy/`.
