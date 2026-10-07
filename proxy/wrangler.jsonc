@@ -1,0 +1,17 @@
+{
+  // The AI proxy Worker. Deploy from this directory: `wrangler deploy`.
+  //
+  // This file is .jsonc on purpose. The repository root has its own
+  // wrangler.jsonc for a different Worker, and wrangler looks for a .jsonc
+  // config in every parent directory before it considers a .toml one. A
+  // wrangler.toml here would be passed over and commands run from proxy/
+  // would act on the root Worker instead.
+  //
+  // The name fixes the public URL the app calls:
+  // https://policymaker-formal-proxy.bbdaniels.workers.dev/
+  "name": "policymaker-formal-proxy",
+  "main": "index.js",
+  "compatibility_date": "2024-01-01",
+  "workers_dev": true,
+  "placement": { "mode": "smart" }
+}

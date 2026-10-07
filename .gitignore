@@ -4,3 +4,7 @@
 !.dev.vars.example
 .env*
 !.env.example
+
+# dependencies and local tool state
+node_modules/
+.claude/

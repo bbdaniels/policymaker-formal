@@ -255,10 +255,10 @@
     <div class="dialog">
       <h3>AI Assistant Settings</h3>
       <form id="chat-settings-form">
-        <label>Proxy URL <input type="text" name="proxyUrl" placeholder="https://your-backend.up.railway.app/api/policymaker-chat"></label>
-        <p style="font-size:0.75rem;color:#6b7685;margin:-0.4rem 0 0.5rem;">Leave empty to use direct HDSI mode below.</p>
-        <label>HDSI Base URL <input type="text" name="baseUrl" placeholder="https://go.apis.huit.harvard.edu/ais-openai-direct-limited-schools/v1"></label>
-        <label>HDSI API Key <input type="password" name="apiKey" placeholder="(institutional key)"></label>
+        <label>Proxy URL <input type="text" name="proxyUrl" placeholder="https://policymaker-formal-proxy.bbdaniels.workers.dev/"></label>
+        <p style="font-size:0.75rem;color:#6b7685;margin:-0.4rem 0 0.5rem;">The proxy holds the key for the Harvard Level 3 gateway and sets the model itself. Leave empty only to call a gateway directly with your own key below.</p>
+        <label>Direct gateway base URL <input type="text" name="baseUrl" placeholder="https://go.apis.huit.harvard.edu/ais-openai-direct-comdev/v2"></label>
+        <label>Direct gateway API key <input type="password" name="apiKey" placeholder="(your own gateway key)"></label>
         <label>Model <input type="text" name="model" value="gpt-4o-mini"></label>
         <div class="dialog-actions">
           <button type="submit" class="btn-primary">Save</button>

@@ -1,8 +1,10 @@
 /**
  * pf.agent.js -- AI chat agent for PolicyMaker Formal.
  *
- * Sends user messages to an OpenAI-compatible endpoint (HDSI / proxy),
- * executes tool calls against PF.Model, and displays responses.
+ * Sends user messages to the AI proxy (the Cloudflare Worker in proxy/, which
+ * forwards them to the Harvard HUIT Level 3 OpenAI gateway), executes tool
+ * calls against PF.Model, and displays responses. The proxy holds the gateway
+ * key, pins the model, and caps reply length; see proxy/README.md.
  */
 
 var PF = PF || {};
@@ -16,8 +18,8 @@ PF.Agent = (function () {
   // ── Config (persisted in localStorage) ─────────────────────────
   var _config = {
     proxyUrl: "https://policymaker-formal-proxy.bbdaniels.workers.dev/",
-    apiKey: "",          // direct HDSI key (only if no proxy)
-    baseUrl: "",         // direct HDSI base URL
+    apiKey: "",          // own gateway key, for direct mode (only if no proxy)
+    baseUrl: "",         // gateway base URL for direct mode
     model: "gpt-4o-mini"
   };
 
@@ -434,11 +436,11 @@ PF.Agent = (function () {
     var url, headers, body;
 
     if (_config.proxyUrl) {
-      // Proxy mode: send to our backend
+      // Proxy mode: the Worker adds the gateway key and pins the model
       url = _config.proxyUrl;
       headers = { "Content-Type": "application/json" };
     } else if (_config.apiKey && _config.baseUrl) {
-      // Direct HDSI mode
+      // Direct mode: call an OpenAI-compatible gateway with the user's own key
       url = _config.baseUrl.replace(/\/$/, "") + "/chat/completions";
       headers = {
         "Content-Type": "application/json",
